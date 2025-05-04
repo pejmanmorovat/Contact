@@ -13,6 +13,12 @@ if ! command -v jq &> /dev/null; then
     exit 1
 fi
 
+# Check if termux-api is installed (for call logs)
+if ! command -v termux-call-log &> /dev/null; then
+    echo -e "${RED}Error: termux-api is not installed. Install it with 'pkg install termux-api'${NC}"
+    exit 1
+fi
+
 # Load contacts
 load_contacts() {
     if [ ! -f "contacts.txt" ]; then
@@ -68,6 +74,24 @@ list_all_contacts() {
     done
 }
 
+# Show call logs (using termux-call-log)
+show_call_logs() {
+    echo -e "${YELLOW}Fetching call logs...${NC}"
+    call_logs=$(termux-call-log)
+
+    if [ -z "$call_logs" ]; then
+        echo -e "${RED}No call logs found.${NC}"
+        return
+    fi
+
+    echo -e "${GREEN}Call Logs (Recent First):${NC}"
+    echo "$call_logs" | jq -r '.[] | 
+        "\(.name // "Unknown"): \(.number) | Type: \(.type) | Date: \(.date)"' | 
+        nl -w 2 -s ". " | while read line; do
+        echo -e "${BLUE}${line}${NC}"
+    done
+}
+
 # Clean phone number
 clean_phone_number() {
     echo "$1" | sed -E 's/[^0-9+]//g'
@@ -83,9 +107,10 @@ main_menu() {
         echo -e "${GREEN}1. Search contacts${NC}"
         echo -e "${GREEN}2. List all contacts${NC}"
         echo -e "${GREEN}3. Add new contact${NC}"
-        echo -e "${GREEN}4. Exit${NC}"
+        echo -e "${GREEN}4. View Call Logs${NC}"
+        echo -e "${GREEN}5. Exit${NC}"
         echo -e "${YELLOW}────────────────────────────${NC}"
-        read -p "Enter your choice (1-4): " choice
+        read -p "Enter your choice (1-5): " choice
         
         case $choice in
             1)
@@ -155,6 +180,10 @@ main_menu() {
                 fi
                 ;;
             4)
+                show_call_logs
+                read -p "Press Enter to continue..."
+                ;;
+            5)
                 echo -e "${GREEN}Goodbye!${NC}"
                 sleep 1
                 clear
